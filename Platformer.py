@@ -26,7 +26,7 @@ class Player(pygame.Rect):
 #MY PLAYER 
 player= Player()
 
-
+#
 
 
 
@@ -39,7 +39,19 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-    
+    #MOVE MY PLAYER USING KEYS
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_UP] or keys[pygame.K_w]:
+        player.y -= 5
+    if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+        player.y += 5
+    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        player.x -= 5
+    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        player.x += 5
+
+
     draw()
     pygame.display.update()
     clock.tick(60)
