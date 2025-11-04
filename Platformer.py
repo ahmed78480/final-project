@@ -7,6 +7,7 @@ PLAYER_X= GAME_WIDTH//2
 PLAYER_Y= GAME_HEIGHT//2
 PLAYER_WIDTH= 42
 PLAYER_HEIGHT=48
+PLAYER_SPEED= 5
 #IMAGES
 Background_image= pygame.image.load("images/background.png")
 player_image=pygame.image.load("images/megaman-right.png")
@@ -43,13 +44,13 @@ while True:
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_UP] or keys[pygame.K_w]:
-        player.y -= 5
+        player.y -= PLAYER_SPEED
     if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-        player.y += 5
-    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-        player.x -= 5
-    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-        player.x += 5
+        player.y += PLAYER_SPEED
+    if keys[pygame.K_LEFT] or keys[pygame.K_a] and player.x>=0:
+        player.x -= PLAYER_SPEED
+    if keys[pygame.K_RIGHT] or keys[pygame.K_d] and player.x + PLAYER_WIDTH <= GAME_WIDTH:
+        player.x += PLAYER_SPEED
 
 
     draw()
