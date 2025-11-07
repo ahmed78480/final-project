@@ -26,6 +26,8 @@ class Player(pygame.Rect):
         self.image= player_image
         self.velocity_y = 0
         self.jumping= 0
+        self.max_health= 5
+        self.health = 3 #self.max_health
 
 
 #MY PLAYER 
@@ -43,6 +45,9 @@ def draw():
     window.fill((50,50,50))
     window.blit(Background_image, (0,50))
     window.blit(player.image, player)
+    pygame.draw.rect(window, "red", (20,20, 20*player.max_health, 10))
+    pygame.draw.rect(window, "green", (20,20, 20*player.health, 10))
+
 while True: 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
