@@ -12,6 +12,8 @@ PLAYER_SPEED= 5
 PLAYER_VELOCITY_Y=-11
 PLAYER_VELOCITY_X = 5
 GRAVITY= 0.5
+ENEMY_WIDTH=36  
+ENEMY_HEIGHT=30
 
 #IMAGES
 Background_image= pygame.image.load("images/background.png")
@@ -27,6 +29,24 @@ player_image_jump_right = pygame.image.load("images/megaman-right-jump.png")
 player_image_jump_right=pygame.transform.scale(player_image_jump_right,(PLAYER_WIDTH,PLAYER_HEIGHT))
 player_image_jump_left = pygame.image.load("images/megaman-left-jump.png")
 player_image_jump_left=pygame.transform.scale(player_image_jump_left,(PLAYER_WIDTH,PLAYER_HEIGHT))
+enemy_image=pygame.image.load("images/metall-left.png")
+enemy_image=pygame.transform.scale(enemy_image,(ENEMY_WIDTH,ENEMY_HEIGHT))
+player_image_shoot_right = pygame.image.load("images/megaman-right-shoot.png")
+player_image_shoot_right = pygame.transform.scale(player_image_shoot_right,(PLAYER_WIDTH,PLAYER_HEIGHT))
+player_image_shoot_left = pygame.image.load("images/megaman-left-shoot.png")
+player_image_shoot_left = pygame.transform.scale(player_image_shoot_left,(PLAYER_WIDTH,PLAYER_HEIGHT))
+player_image_jump_shoot_right = pygame.image.load("images/megaman-right-jump-shoot.png")
+player_image_jump_shoot_right = pygame.transform.scale(player_image_jump_shoot_right,(PLAYER_WIDTH,PLAYER_HEIGHT))
+player_image_jump_shoot_left = pygame.image.load("images/megaman-left-jump-shoot.png")
+player_image_jump_shoot_left = pygame.transform.scale(player_image_jump_shoot_left,(PLAYER_WIDTH,PLAYER_HEIGHT))
+
+
+
+
+
+
+
+
 
 pygame.init() 
 window = pygame.display.set_mode((GAME_WIDTH, GAME_HEIGHT))
@@ -40,12 +60,23 @@ class Player(pygame.Rect):
         self.velocity_y = 0
         self.velocity_x = 0
         self.jumping= 0
-        self.max_health= 5
+        self.max_health= 15
         self.health = self.max_health
         self.direction = "right"
+        self.shooting=0
 
     def update_image(self):
-        if self.jumping:
+        if self.jumping and self.shooting:
+            if self.direction == "right":
+                self.image = player_image_jump_shoot_right
+            elif self.direction == "left":
+                self.image = player_image_jump_shoot_left
+        elif self.shooting:
+            if self.direction == "right":
+                self.image = player_image_shoot_right
+            elif self.direction == "left":
+                self.image = player_image_shoot_left
+        elif self.jumping:
             if self.direction == "right":
                 self.image = player_image_jump_right
             elif self.direction == "left":
@@ -56,7 +87,17 @@ class Player(pygame.Rect):
             elif self.direction == "left":
                 self.image = player_image_left
 
+class Tile(pygame.Rect):
+    def __init__(self, x, y, image):
+        pygame.Rect.__init__(self, x, y, TILE_SIZE, TILE_SIZE)
+        self.image = image
 
+class Enemy(pygame.Rect):
+    def __init__(self, x, y):
+        pygame.Rect.__init__(self, x, y, ENEMY_WIDTH, ENEMY_HEIGHT)
+        self.image = enemy_image
+        self.velocity_y = 0
+        self.direction = "left"
 #MY PLAYER 
 game_started = False
 game_over = False
@@ -90,18 +131,26 @@ def move():
         player.x = 0
     elif player.x + player.width > GAME_WIDTH:
         player.x = GAME_WIDTH - player.width
-    check_tile_collision_x()
+    check_tile_collision_x(player)
 
     #Y
     player.velocity_y += GRAVITY
     player.y += player.velocity_y
-    check_tile_collision_y()
-
-    
+    check_tile_collision_y(player)
+    #enemy
+    for enemy in enemies:
+        enemy.velocity_y +=GRAVITY 
+        enemy.y +=enemy.velocity_y
+        check_tile_collision_y(enemy)
+        
+        if player.colliderect(enemy):
+            player.health -= 0.1
 def draw():
     window.fill((50,50,50))
     window.blit(Background_image, (0,50))
     window.blit(player.image, player)
+    for enemy in enemies:
+        window.blit(enemy.image, enemy)
     for tile in tiles:
         window.blit(tile.image, tile)
     player.update_image()
@@ -110,30 +159,30 @@ def draw():
 #COLLISIONS
 tiles=[]
 
-def check_tile_collision():
+def check_tile_collision(character):
     for tile in tiles:
-        if player.colliderect(tile):
+        if character.colliderect(tile):
             return tile
     return None
 
-def check_tile_collision_x():
-    tile = check_tile_collision()
+def check_tile_collision_x(character):
+    tile = check_tile_collision(character)
     if tile is not None:
-        if player.velocity_x < 0: 
-            player.x = tile.x + tile.width 
-        elif player.velocity_x > 0:
-            player.x = tile.x - player.width 
-        player.velocity_x = 0
+        if character.velocity_x < 0: 
+            character.x = tile.x + tile.width 
+        elif character.velocity_x > 0:
+            character.x = tile.x - character.width 
+        character.velocity_x = 0
 
-def check_tile_collision_y():
-    tile = check_tile_collision()
+def check_tile_collision_y(character):
+    tile = check_tile_collision(character)
     if tile is not None:
-        if player.velocity_y < 0:  
-                player.y = tile.y + tile.height 
-        elif player.velocity_y > 0: 
-            player.y = tile.y - player.height 
-            player.jumping = False
-        player.velocity_y = 0
+        if character.velocity_y < 0:  
+                character.y = tile.y + tile.height 
+        elif character.velocity_y > 0: 
+            character.y = tile.y - character.height 
+            character.jumping = False
+        character.velocity_y = 0
 
 
 #SCREENSHOT
@@ -150,10 +199,6 @@ def take_screenshot():
 
 
 
-class Tile(pygame.Rect):
-    def __init__(self, x, y, image):
-        pygame.Rect.__init__(self, x, y, TILE_SIZE, TILE_SIZE)
-        self.image = image
 
 def create_map():
     for i in range(4):
@@ -167,9 +212,13 @@ def create_map():
     for i in range(3):
         tile = Tile(TILE_SIZE*3, (i+9)*TILE_SIZE, floor_tile_image)
         tiles.append(tile)
-
+    for i in range (4):
+        enemy=  Enemy(player.x +TILE_SIZE*(3+i*1.5),TILE_SIZE*6)
+        enemies.append(enemy)
 #START THE GAME
 player= Player()
+#enemy=Enemy(player.x+TILE_SIZE*3, TILE_SIZE*11)
+enemies=[]
 create_map()
 
 while True: 
@@ -195,7 +244,8 @@ while True:
         game_over = True
     if not (keys[pygame.K_LEFT] or keys[pygame.K_a] or keys[pygame.K_RIGHT] or keys[pygame.K_d]):
         player.velocity_x = 0
-
+    if keys[pygame.K_x]:
+        player.shooting=1
     #draw my start menu
     if not game_started:
         draw_start_menu()
