@@ -14,6 +14,14 @@ PLAYER_VELOCITY_X = 5
 GRAVITY= 0.5
 ENEMY_WIDTH=36  
 ENEMY_HEIGHT=30
+BULLET_WIDTH = 16
+BULLET_HEIGHT= 10
+BULLET_VELOCITY= 8
+ENEMY_BULLET_W= 12
+ENEMY_BULLET_H=12
+ENEMY_BULLET_VX=3
+ENEMY_BULLET_VY=3
+
 
 #IMAGES
 Background_image= pygame.image.load("images/background.png")
@@ -39,7 +47,10 @@ player_image_jump_shoot_right = pygame.image.load("images/megaman-right-jump-sho
 player_image_jump_shoot_right = pygame.transform.scale(player_image_jump_shoot_right,(PLAYER_WIDTH,PLAYER_HEIGHT))
 player_image_jump_shoot_left = pygame.image.load("images/megaman-left-jump-shoot.png")
 player_image_jump_shoot_left = pygame.transform.scale(player_image_jump_shoot_left,(PLAYER_WIDTH,PLAYER_HEIGHT))
-
+bullet_image= pygame.image.load("images/bullet.png")
+bullet_image=pygame.transform.scale(bullet_image,(BULLET_WIDTH,BULLET_HEIGHT))
+enemy_bullet_image= pygame.image.load("images/metall-bullet.png")
+enemy_bullet_image=pygame.transform.scale(enemy_bullet_image,(ENEMY_BULLET_W,ENEMY_BULLET_H))
 
 
 
@@ -54,6 +65,17 @@ pygame.display.set_caption("Platformer")
 clock = pygame.time.Clock() 
 
 class Player(pygame.Rect):
+    class Bullet(pygame.Rect):
+        def __init__(self):
+                if player.direction == "left":
+                    pygame.Rect.__init__(self, player.x, player.y + TILE_SIZE/2,
+                                        BULLET_WIDTH, BULLET_HEIGHT)
+                    self.velocity_x = -BULLET_VELOCITY
+                elif player.direction == "right":
+                    pygame.Rect.__init__(self, player.x + player.width, player.y + TILE_SIZE/2,BULLET_WIDTH, BULLET_HEIGHT)
+                    self.velocity_x = BULLET_VELOCITY
+                self.image = bullet_image
+                self.used= False
     def __init__(self):
         pygame.Rect.__init__(self,PLAYER_X,PLAYER_Y,PLAYER_WIDTH,PLAYER_HEIGHT)
         self.image= player_image
@@ -64,6 +86,12 @@ class Player(pygame.Rect):
         self.health = self.max_health
         self.direction = "right"
         self.shooting=0
+        self.bullets=[]
+        self.shooting_timer=0
+    def start_shooting(self):
+        self.shooting=True
+        self.shooting_timer=5
+        self.bullets.append(Player.Bullet())
 
     def update_image(self):
         if self.jumping and self.shooting:
@@ -93,11 +121,33 @@ class Tile(pygame.Rect):
         self.image = image
 
 class Enemy(pygame.Rect):
+    class Bullet(pygame.Rect):
+        def __init__(self, enemy, velocity_y):
+            if enemy.direction=="left":
+                pygame.Rect.__init__(self, enemy.x,enemy.y+TILE_SIZE/2,ENEMY_BULLET_W,ENEMY_BULLET_H)
+                self.velocity_x= - ENEMY_BULLET_VX
+                self.velocity_y= velocity_y
+                self.image=enemy_bullet_image
+                self.used= False
     def __init__(self, x, y):
         pygame.Rect.__init__(self, x, y, ENEMY_WIDTH, ENEMY_HEIGHT)
         self.image = enemy_image
         self.velocity_y = 0
         self.direction = "left"
+        self.health= 3
+        self.bullets=[]
+        self.shooting= False
+        self.shoot_timer = 0
+
+    def shoot(self):
+        velocities = [-ENEMY_BULLET_VY, 0, ENEMY_BULLET_VY]
+
+        for vy in velocities:
+            bullet = Enemy.Bullet(self, vy)
+            self.bullets.append(bullet)
+
+
+
 #MY PLAYER 
 game_started = False
 game_over = False
@@ -125,6 +175,7 @@ def draw_game_over():
 
 
 def move():
+    global enemies
     #X
     player.x += player.velocity_x
     if player.x < 0:
@@ -145,6 +196,49 @@ def move():
         
         if player.colliderect(enemy):
             player.health -= 0.1
+
+        enemy.shoot_timer += 1
+        if enemy.shoot_timer >= 120:  
+            enemy.shoot()
+            enemy.shoot_timer = 0
+
+
+
+    #bullets
+    for bullet in player.bullets:
+        bullet.x += bullet.velocity_x
+        for bullet in player.bullets[:]:
+            bullet.x += (bullet.velocity_x)*0.01
+        if bullet.x < 0 or bullet.x > GAME_WIDTH:
+            player.bullets.remove(bullet)
+        for enemy in enemies:
+            if enemy.health >0 and not bullet.used and bullet.colliderect(enemy):
+                enemy.health-= 1
+                bullet.used= True
+
+    player.bullets=[bullet for bullet in player.bullets if not bullet.used]
+    if player.shooting_timer > 0:
+        player.shooting_timer -= 1
+    else:
+        player.shooting = False
+    enemies =[enemy for enemy in enemies if enemy.health>0]
+    for enemy in enemies:
+        for bullet in enemy.bullets[:]:
+            bullet.x += bullet.velocity_x
+            bullet.y += bullet.velocity_y
+
+            if bullet.x < 0 or bullet.x > GAME_WIDTH or bullet.y < 0 or bullet.y > GAME_HEIGHT:
+                enemy.bullets.remove(bullet)
+                continue
+
+            if not bullet.used and bullet.colliderect(player):
+                player.health -= 1
+                bullet.used = True
+                enemy.bullets.remove(bullet)
+
+
+
+
 def draw():
     window.fill((50,50,50))
     window.blit(Background_image, (0,50))
@@ -154,6 +248,11 @@ def draw():
     for tile in tiles:
         window.blit(tile.image, tile)
     player.update_image()
+    for bullet in player.bullets:
+        window.blit(bullet.image, bullet)
+    for enemy in enemies:
+        for bullet in enemy.bullets:
+            window.blit(enemy_bullet_image, bullet)
     pygame.draw.rect(window, "red", (20,20, 20*player.max_health, 10))
     pygame.draw.rect(window, "green", (20,20, 20*player.health, 10))
 #COLLISIONS
@@ -244,8 +343,8 @@ while True:
         game_over = True
     if not (keys[pygame.K_LEFT] or keys[pygame.K_a] or keys[pygame.K_RIGHT] or keys[pygame.K_d]):
         player.velocity_x = 0
-    if keys[pygame.K_x]:
-        player.shooting=1
+    if keys[pygame.K_x] and len(player.bullets) <= 1 :
+        player.start_shooting()
     #draw my start menu
     if not game_started:
         draw_start_menu()
